@@ -31,7 +31,7 @@ echo "export PIN_ROOT=${PREFIX}/${TAR_NAME}"
 PINDIR=`ls -d */ | grep pin- | cut -d "/" -f 1`
 CURDIR=`pwd`
 pin_makefile="$CURDIR/$PINDIR/source/tools/MyPinTool/makefile"
-mkdir -p tools
-ln -fs "$pin_makefile" tools/makefile
-echo "created symlink to tools/makefile"
+mkdir -p tool
+ln -fs "$pin_makefile" tool/makefile
+echo "created symlink to tool/makefile"
 

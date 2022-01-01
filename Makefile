@@ -4,8 +4,8 @@ pin-root := `pwd`/`ls -d */ | grep pin- | cut -d "/" -f 1`
 
 build:
 	export PIN_ROOT=$(pin-root) && cd src && $(MAKE)
-	export PIN_ROOT=$(pin-root) && cd tools && $(MAKE)
+	export PIN_ROOT=$(pin-root) && cd tool && $(MAKE)
 
 clean:
-	rm -rf tools/obj-intel64
+	rm -rf tool/obj-intel64
 
