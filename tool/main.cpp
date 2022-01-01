@@ -36,6 +36,7 @@
 #include <iostream>
 
 #include "branch_pred.h"
+#include "ins_helper.h"
 #include "libdft_api.h"
 #include "pin.H"
 #include "tagmap.h"
@@ -51,17 +52,17 @@ KNOB<UINT32> KnobTaintArgsIndex(KNOB_MODE_APPEND, "pintool", "arg_index", "1",
 KNOB<UINT32> KnobTaintArgsSize(KNOB_MODE_APPEND, "pintool", "arg_size", "4",
                                "specify size of each args to taint");
 
-static unsigned int reg_pin2dft(REG reg) {
-    if (REG_GR_BASE <= reg && reg <= REG_GR_LAST) {
-        return (unsigned int)reg;
-    } else if (REG_XMM_BASE <= reg && reg <= REG_XMM_SSE_LAST) {
-        return (unsigned int)(reg - REG_XMM_BASE) + DFT_REG_XMM0;
-    } else if (REG_ST_BASE <= reg && reg <= REG_ST_LAST) {
-        return (unsigned int)(reg - REG_ST_BASE) + DFT_REG_ST0;
-    } else {
-        // not supported register
-        return 100;  // will be error
+static void print_reg(THREADID tid) {
+    tag_t color;
+    for (unsigned int reg = REG_GR_BASE; reg <= REG_GR_LAST; reg++) {
+        cerr << REG_StringShort((REG)reg) << " : ";
+        for (unsigned int i = 0; i < TAGS_PER_GPR; i++) {
+            color = tagmap_getb_reg(tid, reg, i);
+            cerr << color << ", ";
+        }
+        cerr << endl;
     }
+    cerr << endl;
 }
 
 static unsigned int arg_index2dft_reg(UINT32 index) {
@@ -88,17 +89,12 @@ static void taint_args(THREADID tid, REG arg_reg) {
     cerr << "===taint_args===" << endl;
     tag_t t = tag_alloc<tag_t>(0);
     cerr << "allocated tag" << endl;
+    print_reg(tid);
     for (unsigned int i = 0; i < TAGS_PER_GPR; i++) {
-        tagmap_setb_reg(tid, reg_pin2dft(arg_reg), i, t);
+        tagmap_setb_reg(tid, REG_INDX(arg_reg), i, t);
     }
     cerr << "tainted " << REG_StringShort(arg_reg) << " register" << endl;
-    /* tag_t color; */
-    /* cerr << "tag : "; */
-    /* for (unsigned int i = 0; i < TAGS_PER_GPR; i++) { */
-    /*     color = tagmap_getb_reg(tid, reg_pin2dft(arg_reg), i); */
-    /*     cerr << color << ", "; */
-    /* } */
-    /* cerr << endl; */
+    print_reg(tid);
 }
 
 static void add_taint_source(IMG img, void *v) {
@@ -129,41 +125,58 @@ static void add_taint_source(IMG img, void *v) {
     RTN_Close(func_rtn);
 }
 
-static void check_taint(THREADID tid, REG index_reg) {
-    cerr << "===check_spectre===" << endl;
-    UINT32 reg_dft = reg_pin2dft(index_reg);
-    tag_t color;
-    cerr << "reg_dft : " << reg_dft << endl;
+static void check_taint(THREADID tid, REG base_reg, REG index_reg) {
+    cerr << "===check_taint===" << endl;
+    tag_t color, sum;
+    print_reg(tid);
+    cerr << "checking " << REG_StringShort(base_reg) << " register (base)"
+         << endl;
     cerr << "tag : ";
     for (unsigned int i = 0; i < TAGS_PER_GPR; i++) {
-        color = tagmap_getb_reg(tid, reg_dft, i);
+        color = tagmap_getb_reg(tid, REG_INDX(base_reg), i);
         cerr << color << ", ";
-        if (color == 0x01) {
-            cerr << endl << "index reg is tainted!!" << endl;
-            return;
-        }
+        sum += color;
     }
     cerr << endl;
+    cerr << "checking " << REG_StringShort(index_reg) << " register (index)"
+         << endl;
+    cerr << "tag : ";
+    for (unsigned int i = 0; i < TAGS_PER_GPR; i++) {
+        color = tagmap_getb_reg(tid, REG_INDX(index_reg), i);
+        cerr << color << ", ";
+        sum += color;
+    }
+    cerr << endl;
+    if (sum > 0) {
+        cerr << "operand of mov is tainted !!!" << endl;
+    }
 }
 
 static void instrument_mov(INS ins, void *v) {
     IMG img = IMG_FindByAddress(INS_Address(ins));
     if (!IMG_Valid(img) || !IMG_IsMainExecutable(img)) return;
 
-    if (!INS_IsMemoryRead(ins)) return;
-    if (!INS_IsMov(ins)) return;
+    if (INS_OperandCount(ins) != 2) return;
+    /* if (!INS_IsMemoryRead(ins)) return; */
+    /* if (!INS_IsMov(ins)) return; */
     if (!INS_OperandIsMemory(ins, 1)) return;  // in Intel syntax
 
     cerr << "===instrument_mov" << endl;
     REG index_reg = INS_OperandMemoryIndexReg(ins, 1);
-    index_reg = REG_FullRegName(index_reg);
     if (index_reg == REG_INVALID()) {
         cerr << "there is not an index register" << endl;
         return;
     }
     cerr << "index register : " << REG_StringShort(index_reg) << endl;
+    REG base_reg = INS_OperandMemoryBaseReg(ins, 1);
+    if (base_reg == REG_INVALID()) {
+        cerr << "there is not an base register" << endl;
+        return;
+    }
+    cerr << "base register : " << REG_StringShort(base_reg) << endl;
     INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)check_taint,
-                             IARG_THREAD_ID, IARG_UINT32, index_reg, IARG_END);
+                             IARG_THREAD_ID, IARG_UINT32, base_reg, IARG_UINT32,
+                             index_reg, IARG_END);
 }
 
 int main(int argc, char **argv) {
