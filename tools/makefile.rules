@@ -5,6 +5,10 @@
 #
 ##############################################################
 
+###### Additional includes that are specific to this directory ######
+
+# Placeholder for additional include files.
+
 
 ##############################################################
 #
@@ -17,14 +21,14 @@
 # This defines tests which run tools of the same name.  This is simply for convenience to avoid
 # defining the test name twice (once in TOOL_ROOTS and again in TEST_ROOTS).
 # Tests defined here should not be defined in TOOL_ROOTS and TEST_ROOTS.
-TEST_TOOL_ROOTS := nullpin
+TEST_TOOL_ROOTS :=
 
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
-TEST_ROOTS :=
+TEST_ROOTS := test_mini
 
 # This defines the tools which will be run during the the tests, and were not already defined in
 # TEST_TOOL_ROOTS.
-TOOL_ROOTS :=
+TOOL_ROOTS := main # nullpin libdft libdft-dta
 
 # This defines the static analysis tools which will be run during the the tests. They should not
 # be defined in TEST_TOOL_ROOTS. If a test with the same name exists, it should be defined in
@@ -35,7 +39,7 @@ TOOL_ROOTS :=
 SA_TOOL_ROOTS :=
 
 # This defines all the applications that will be run during the tests.
-APP_ROOTS :=
+APP_ROOTS := mini_test
 
 # This defines any additional object files that need to be compiled.
 OBJECT_ROOTS :=
@@ -46,24 +50,29 @@ DLL_ROOTS :=
 # This defines any static libraries (archives), that need to be built.
 LIB_ROOTS :=
 
-###### Handle exceptions here (OS/arch related) ######
+###### Place architecture-specific definitions here ######
 
-RUNNABLE_TESTS := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
+# Place ia32-specific definitions here if they apply to all supported operating systems.
+ifeq ($(TARGET),ia32)
+    TOOL_CXXFLAGS += -m32
+    LIBDFT_INC_PATH	= $(realpath ../src32/)
+    LIBDFT_PATH	= $(realpath ../src32/obj-ia32/)
+endif
 
-###### Handle exceptions here (bugs related) ######
-
-###### Define the sanity subset ######
-
-# This defines the list of tests that should run in sanity. It should include all the tests listed in
-# TEST_TOOL_ROOTS and TEST_ROOTS excluding only unstable tests.
-SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
-
+# Place intel64-specific definitions here if they apply to all supported operating systems.
+ifeq ($(TARGET),intel64)
+	TOOL_CXXFLAGS +=
+    LIBDFT_INC_PATH	= $(realpath ../src/)
+    LIBDFT_PATH	= $(realpath ../src/obj-intel64/)
+endif
 
 ##############################################################
 #
 # Test recipes
 #
 ##############################################################
+
+###### Finalize sanity here ######
 
 # This section contains recipes for tests other than the default.
 # See makefile.default.rules for the default test rules.
@@ -78,4 +87,14 @@ SANITY_SUBSET := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 
 # This section contains the build rules for all binaries that have special build rules.
 # See makefile.default.rules for the default build rules.
+
+###### Special tools' build rules ######
+
+LOGGING_FLAGS = -DNO_PINTOOL_LOG
+TOOL_CXXFLAGS += $(LOGGING_FLAGS) -I$(LIBDFT_INC_PATH) -L$(LIBDFT_PATH)
+TOOL_LIBS += -L$(LIBDFT_PATH) -ldft
+
+# INPUT_FILE=cur_input
+# test_mini: $(OBJDIR)/main$(PINTOOL_SUFFIX) ${OBJDIR}/mini_test$(EXE_SUFFIX)
+# 	$(PIN) -t $< -- $(OBJDIR)mini_test$(EXE_SUFFIX)  ${INPUT_FILE}
 
