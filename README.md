@@ -32,7 +32,7 @@ cd -
 ## how to run pintool
 
 ```bash
-./pin-3.20-98437-gf02b61307-gcc-linux/pin -t tool/obj-intel64/main.so -func test -arg_index 0 -arg_size 4 -- test/a.out
+./pin-3.20-98437-gf02b61307-gcc-linux/pin -t tool/obj-intel64/main.so -func test -arg_index 0 -- test/a.out
 ```
 
 ## Note
