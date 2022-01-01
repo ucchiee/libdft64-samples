@@ -128,6 +128,7 @@ static void add_taint_source(IMG img, void *v) {
 static void check_taint(THREADID tid, REG base_reg, REG index_reg) {
     cerr << "===check_taint===" << endl;
     tag_t color, sum;
+    sum = 0;
     print_reg(tid);
     cerr << "checking " << REG_StringShort(base_reg) << " register (base)"
          << endl;
