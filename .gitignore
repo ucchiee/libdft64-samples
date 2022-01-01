@@ -8,3 +8,4 @@ src
 tool/obj-intel64
 tool/makefile
 log.txt
+test/a.out
