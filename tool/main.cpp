@@ -49,11 +49,10 @@ KNOB<string> KnobTaintSourceFunc(KNOB_MODE_WRITEONCE, "pintool", "func", "main",
 
 KNOB<UINT32> KnobTaintArgsIndex(KNOB_MODE_APPEND, "pintool", "arg_index", "1",
                                 "specify index of arg to taint");
-KNOB<UINT32> KnobTaintArgsSize(KNOB_MODE_APPEND, "pintool", "arg_size", "4",
-                               "specify size of each args to taint");
 
 static void print_reg(THREADID tid) {
     tag_t color;
+    /* only print general perpose register to make it simple */
     for (unsigned int reg = REG_GR_BASE; reg <= REG_GR_LAST; reg++) {
         cerr << REG_StringShort((REG)reg) << " : ";
         for (unsigned int i = 0; i < TAGS_PER_GPR; i++) {
@@ -98,7 +97,7 @@ static void taint_args(THREADID tid, REG arg_reg) {
 }
 
 static void add_taint_source(IMG img, void *v) {
-    cerr << "=============add_taint_source=============" << endl;
+    cerr << "===add_taint_source===" << endl;
     if (!IMG_Valid(img)) {
         cerr << "img is invalid, will return" << endl;
         return;
@@ -157,9 +156,8 @@ static void instrument_mov(INS ins, void *v) {
     IMG img = IMG_FindByAddress(INS_Address(ins));
     if (!IMG_Valid(img) || !IMG_IsMainExecutable(img)) return;
 
+    /* you can also use INS_IsMov(ins) insted */
     if (INS_OperandCount(ins) != 2) return;
-    /* if (!INS_IsMemoryRead(ins)) return; */
-    /* if (!INS_IsMov(ins)) return; */
     if (!INS_OperandIsMemory(ins, 1)) return;  // in Intel syntax
 
     cerr << "===instrument_mov" << endl;
@@ -195,14 +193,6 @@ int main(int argc, char **argv) {
     string funcname = KnobTaintSourceFunc.Value();
     if (funcname.empty()) {
         cerr << "Must specify funcname whose args is taint source" << endl;
-        return -1;
-    }
-    UINT32 num_index = (UINT32)KnobTaintArgsIndex.NumberOfValues();
-    UINT32 num_size = (UINT32)KnobTaintArgsSize.NumberOfValues();
-    if (num_index == 0 || num_size == 0 || num_index != num_size) {
-        cerr << "invalid arg_index or arg_size" << endl;
-        cerr << "num_index : " << num_index << endl;
-        cerr << "num_size : " << num_size << endl;
         return -1;
     }
 
