@@ -4,3 +4,4 @@ compile_commands.json
 src/obj-intel64
 .cache
 pin.log
+src
