@@ -64,20 +64,41 @@ static unsigned int reg_pin2dft(REG reg) {
     }
 }
 
-static void taint_args(ADDRINT addr, UINT32 size) {
+static unsigned int arg_index2dft_reg(UINT32 index) {
+    switch (index) {
+        case 0:
+            return DFT_REG_RDI;
+        case 1:
+            return DFT_REG_RSI;
+        case 2:
+            return DFT_REG_RDX;
+        case 3:
+            return DFT_REG_RCX;
+        case 4:
+            return DFT_REG_R8;
+        case 5:
+            return DFT_REG_R9;
+        default:
+            cerr << "7~th args is not supported yet." << endl;
+            return 0;
+    }
+}
+
+static void taint_args(THREADID tid, REG arg_reg) {
     cerr << "===taint_args===" << endl;
     tag_t t = tag_alloc<tag_t>(0);
-    for (UINT32 i = 0; i < size; i++) {
-        // there is not tagmap_setn (why?)
-        tagmap_setb(addr + i, t);
-        cerr << "Taint Source : " << addr + i << endl;
+    cerr << "allocated tag" << endl;
+    for (unsigned int i = 0; i < TAGS_PER_GPR; i++) {
+        tagmap_setb_reg(tid, reg_pin2dft(arg_reg), i, t);
     }
-    cerr << "respectively tainted as below" << endl;
-    for (UINT32 i = 0; i < size; i++) {
-        // there is not tagmap_setn (why?)
-        cerr << "Taint Source : " << addr + i << " -> " << tagmap_getb(addr + i)
-             << endl;
-    }
+    cerr << "tainted " << REG_StringShort(arg_reg) << " register" << endl;
+    /* tag_t color; */
+    /* cerr << "tag : "; */
+    /* for (unsigned int i = 0; i < TAGS_PER_GPR; i++) { */
+    /*     color = tagmap_getb_reg(tid, reg_pin2dft(arg_reg), i); */
+    /*     cerr << color << ", "; */
+    /* } */
+    /* cerr << endl; */
 }
 
 static void add_taint_source(IMG img, void *v) {
@@ -99,9 +120,9 @@ static void add_taint_source(IMG img, void *v) {
     RTN_Open(func_rtn);
     for (UINT32 i = 0; i < KnobTaintArgsIndex.NumberOfValues(); i++) {
         RTN_InsertCall(func_rtn, IPOINT_BEFORE, (AFUNPTR)taint_args,
-                       IARG_FUNCARG_ENTRYPOINT_REFERENCE,
-                       KnobTaintArgsIndex.Value(i), IARG_UINT32,
-                       KnobTaintArgsSize.Value(i), IARG_END);
+                       IARG_THREAD_ID, IARG_UINT32,
+                       arg_index2dft_reg(KnobTaintArgsIndex.Value(i)),
+                       IARG_END);
     }
     cerr << "inserted taint_args to " << KnobTaintSourceFunc.Value() << " rtn"
          << endl;
@@ -117,7 +138,7 @@ static void check_taint(THREADID tid, REG index_reg) {
     for (unsigned int i = 0; i < TAGS_PER_GPR; i++) {
         color = tagmap_getb_reg(tid, reg_dft, i);
         cerr << color << ", ";
-        if (color == 0x02) {
+        if (color == 0x01) {
             cerr << endl << "index reg is tainted!!" << endl;
             return;
         }
