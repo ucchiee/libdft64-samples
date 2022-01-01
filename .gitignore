@@ -5,7 +5,6 @@ src/obj-intel64
 .cache
 pin.log
 src
-test
 tool/obj-intel64
 tool/makefile
 log.txt
